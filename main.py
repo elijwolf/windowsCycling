@@ -1,8 +1,11 @@
+from time import sleep
+from datetime import datetime
+from PyQt5.QtCore import QThread, pyqtSignal
+
 print ('importing sys...')
 import sys
 print ('importing os...')
 import os
-
 print ('importing numpy...')
 import numpy as np
 ######################################################################################################
@@ -46,6 +49,24 @@ import matplotlib.patches as mpatches
 import matplotlib
 matplotlib.use("Qt5Agg")
 
+class Worker(QtCore.QObject):
+	def __init__(self, parent=None, totalLoops=1):
+		super(Worker, self).__init__(parent)
+		self.totalLoops = totalLoops
+		self.totalLoops = int(window.totalLoopsLineEdit.text())
+	finished = pyqtSignal()
+	progress = pyqtSignal(int)
+
+	def run(self):
+		for i in range(self.totalLoops):
+			if window.stopScienceFlag == True:
+				print ('Abort detected!')
+				break
+			sleep(2)
+			self.progress.emit(i + 1)
+		self.finished.emit()
+		print ('Finished')
+
 class Window(QtWidgets.QMainWindow):
 	def __init__(self,parent=None):
 		QtWidgets.QMainWindow.__init__(self)
@@ -59,7 +80,7 @@ class Window(QtWidgets.QMainWindow):
 		self.setWindowIcon(QtGui.QIcon('simple_icon.png'))
 		self.resize(1280,720)
 		# Define the parent widget
-		self.mainWidget = QtWidgets.QWidget(self)
+		self.mainWidget = QtWidgets.QWidget()
 		# Define a layout for the parent widget
 		self.gridLayout = QtWidgets.QGridLayout(self.mainWidget)
 
@@ -161,9 +182,13 @@ class Window(QtWidgets.QMainWindow):
 		self.saveLocationLineEdit = QtWidgets.QLineEdit()
 		self.saveLocationLineEdit.setReadOnly(True)
 		self.startScienceButton = QtWidgets.QPushButton(self.mainWidget)
-		self.startScienceButton.setText('Science Bitch!')
+		self.startScienceButton.setText('Start')
 		self.stopScienceButton = QtWidgets.QPushButton(self.mainWidget)
-		self.stopScienceButton.setText("Hol' Up!")
+		self.stopScienceButton.setText('STOP')
+		self.stopScienceButton.setEnabled(False)
+
+		self.progressBar = QtWidgets.QProgressBar(self)
+		self.progressBar.setValue(0)
 
 		self.buttonSizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,QtWidgets.QSizePolicy.Fixed)
 		self.buttonSizePolicy.setHorizontalStretch(0)
@@ -183,6 +208,7 @@ class Window(QtWidgets.QMainWindow):
 		self.gridLayout.addWidget(self.tabWidget, 1,2,3,1)
 		self.gridLayout.addWidget(self.startScienceButton, 2,0,1,2)
 		self.gridLayout.addWidget(self.stopScienceButton, 3,0,1,2)
+		self.gridLayout.addWidget(self.progressBar, 4, 0, 1, 2)
 
 		# Create Labels
 		self.depositionTimeLabel = QtWidgets.QLabel(self.mainWidget)
@@ -213,7 +239,15 @@ class Window(QtWidgets.QMainWindow):
 		self.activeCurrentLabel = QtWidgets.QLabel(self.mainWidget)
 		self.activeCurrentLabel.setText('I (mA)')
 		self.activeChargeLabel = QtWidgets.QLabel(self.mainWidget)
-		self.activeChargeLabel.setText('Q (C)')
+		self.activeChargeLabel.setText('Q (mC)')
+		self.currentLoopLabel = QtWidgets.QLabel(self.mainWidget)
+		self.currentLoopLabel.setText('Current Loop')
+		self.elapsedTimeLabel = QtWidgets.QLabel(self.mainWidget)
+		self.elapsedTimeLabel.setText('Elapsed Time (s)')
+		self.totalTimeLabel = QtWidgets.QLabel(self.mainWidget)
+		self.totalTimeLabel.setText('Total Time (s)')
+		self.timeRemainingLabel = QtWidgets.QLabel(self.mainWidget)
+		self.timeRemainingLabel.setText('Time Remaining (s)')
 
 		# Add Labels to the Form
 		self.inputFormLayout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.depositionTimeLabel)
@@ -229,33 +263,81 @@ class Window(QtWidgets.QMainWindow):
 		self.inputFormLayout.setWidget(9, QtWidgets.QFormLayout.LabelRole, self.activeVoltageLabel)
 		self.inputFormLayout.setWidget(10, QtWidgets.QFormLayout.LabelRole, self.activeCurrentLabel)
 		self.inputFormLayout.setWidget(11, QtWidgets.QFormLayout.LabelRole, self.activeChargeLabel)
+		self.inputFormLayout.setWidget(12, QtWidgets.QFormLayout.LabelRole, self.currentLoopLabel)
+		self.inputFormLayout.setWidget(13, QtWidgets.QFormLayout.LabelRole, self.elapsedTimeLabel)
+		self.inputFormLayout.setWidget(14, QtWidgets.QFormLayout.LabelRole, self.totalTimeLabel)
+		self.inputFormLayout.setWidget(15, QtWidgets.QFormLayout.LabelRole, self.timeRemainingLabel)
 
 		# Create Line Edits
+		self.fixedWidth = 110
 		self.depositionTimeLineEdit = QtWidgets.QLineEdit()
 		self.depositionTimeLineEdit.setText('20')
+		self.depositionTimeLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.depositionVoltageLineEdit = QtWidgets.QLineEdit()
 		self.depositionVoltageLineEdit.setText('-0.7')
+		self.depositionVoltageLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.depositionWaitLineEdit = QtWidgets.QLineEdit()
 		self.depositionWaitLineEdit.setText('2')
+		self.depositionWaitLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.stripTimeLineEdit = QtWidgets.QLineEdit()
 		self.stripTimeLineEdit.setText('60')
+		self.stripTimeLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.stripVoltageLineEdit = QtWidgets.QLineEdit()
 		self.stripVoltageLineEdit.setText('1')
+		self.stripVoltageLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.stripWaitLineEdit = QtWidgets.QLineEdit()
 		self.stripWaitLineEdit.setText('2')
+		self.stripWaitLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.cutOffDepositionILineEdit = QtWidgets.QLineEdit()
 		self.cutOffDepositionILineEdit.setText('1')
+		self.cutOffDepositionILineEdit.setFixedWidth(self.fixedWidth)
+
 		self.totalLoopsLineEdit = QtWidgets.QLineEdit()
 		self.totalLoopsLineEdit.setText('10')
+		self.totalLoopsLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.initialWaitLineEdit = QtWidgets.QLineEdit()
 		self.initialWaitLineEdit.setText('4')
+		self.initialWaitLineEdit.setFixedWidth(self.fixedWidth)
 
 		self.activeVoltageLineEdit = QtWidgets.QLineEdit()
 		self.activeVoltageLineEdit.setReadOnly(True)
+		self.activeVoltageLineEdit.setText('open')
+		self.activeVoltageLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.activeCurrentLineEdit = QtWidgets.QLineEdit()
 		self.activeCurrentLineEdit.setReadOnly(True)
+		self.activeCurrentLineEdit.setText('0')
+		self.activeCurrentLineEdit.setFixedWidth(self.fixedWidth)
+
 		self.activeChargeLineEdit = QtWidgets.QLineEdit()
 		self.activeChargeLineEdit.setReadOnly(True)
+		self.activeChargeLineEdit.setText('0')
+		self.activeChargeLineEdit.setFixedWidth(self.fixedWidth)
+
+		self.currentLoopLineEdit = QtWidgets.QLineEdit()
+		self.currentLoopLineEdit.setReadOnly(True)
+		self.currentLoopLineEdit.setText('0')
+		self.currentLoopLineEdit.setFixedWidth(self.fixedWidth)
+
+		self.elapsedTimeLineEdit = QtWidgets.QLineEdit()
+		self.elapsedTimeLineEdit.setReadOnly(True)
+		self.elapsedTimeLineEdit.setText('00:00:00')
+		self.elapsedTimeLineEdit.setFixedWidth(self.fixedWidth)
+
+		self.totalTimeLineEdit = QtWidgets.QLineEdit()
+		self.totalTimeLineEdit.setReadOnly(True)
+		self.totalTimeLineEdit.setFixedWidth(self.fixedWidth)
+
+		self.timeRemainingLineEdit = QtWidgets.QLineEdit()
+		self.timeRemainingLineEdit.setReadOnly(True)
+		self.timeRemainingLineEdit.setFixedWidth(self.fixedWidth)
 
 		# Add Validators the Line Edits
 		self.intValidator = QtGui.QIntValidator()
@@ -285,11 +367,15 @@ class Window(QtWidgets.QMainWindow):
 		self.inputFormLayout.setWidget(9, QtWidgets.QFormLayout.FieldRole, self.activeVoltageLineEdit)
 		self.inputFormLayout.setWidget(10, QtWidgets.QFormLayout.FieldRole, self.activeCurrentLineEdit)
 		self.inputFormLayout.setWidget(11, QtWidgets.QFormLayout.FieldRole, self.activeChargeLineEdit)
+		self.inputFormLayout.setWidget(12, QtWidgets.QFormLayout.FieldRole, self.currentLoopLineEdit)
+		self.inputFormLayout.setWidget(13, QtWidgets.QFormLayout.FieldRole, self.elapsedTimeLineEdit)
+		self.inputFormLayout.setWidget(14, QtWidgets.QFormLayout.FieldRole, self.totalTimeLineEdit)
+		self.inputFormLayout.setWidget(15, QtWidgets.QFormLayout.FieldRole, self.timeRemainingLineEdit)
 
 		# Set Font Properties
 		self.font = QtGui.QFont()
 		self.font.setFamily("Arial")
-		self.font.setPointSize(30)
+		self.font.setPointSize(20)
 
 		# Apply Font to Widgets
 		self.depositionTimeLabel.setFont(self.font)
@@ -315,15 +401,27 @@ class Window(QtWidgets.QMainWindow):
 		self.activeVoltageLabel.setFont(self.font)
 		self.activeCurrentLabel.setFont(self.font)
 		self.activeChargeLabel.setFont(self.font)
+		self.currentLoopLabel.setFont(self.font)
+		self.elapsedTimeLabel.setFont(self.font)
+		self.totalTimeLabel.setFont(self.font)
+		self.timeRemainingLabel.setFont(self.font)
 
 		self.activeVoltageLineEdit.setFont(self.font)
 		self.activeCurrentLineEdit.setFont(self.font)
 		self.activeChargeLineEdit.setFont(self.font)
+		self.currentLoopLineEdit.setFont(self.font)
+		self.elapsedTimeLineEdit.setFont(self.font)
+		self.totalTimeLineEdit.setFont(self.font)
+		self.timeRemainingLineEdit.setFont(self.font)
 
 		self.saveLocationLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.activeVoltageLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.activeCurrentLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.activeChargeLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
+		self.currentLoopLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
+		self.elapsedTimeLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
+		self.totalTimeLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
+		self.timeRemainingLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 
 		# Define the size policy of the line edits
 		self.sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,QtWidgets.QSizePolicy.Fixed)
@@ -350,11 +448,15 @@ class Window(QtWidgets.QMainWindow):
 		self.activeVoltageLineEdit.setSizePolicy(self.sizePolicy)
 		self.activeCurrentLineEdit.setSizePolicy(self.sizePolicy)
 		self.activeChargeLineEdit.setSizePolicy(self.sizePolicy)
+		self.currentLoopLineEdit.setSizePolicy(self.sizePolicy)
+		self.elapsedTimeLineEdit.setSizePolicy(self.sizePolicy)
+		self.totalTimeLineEdit.setSizePolicy(self.sizePolicy)
+		self.timeRemainingLineEdit.setSizePolicy(self.sizePolicy)
 
 		# Connect Signals
 		self.cdPushButton.clicked.connect(self.setSaveLocation)
 		self.startScienceButton.clicked.connect(self.startScience)
-		self.stopScienceButton.clicked.connect(self.stopScience)
+		self.stopScienceButton.clicked.connect(self.stopScienceButtonFunc)
 		self.IvtPlay.clicked.connect(self.startIvtAutoscale)
 		self.IvtStop.clicked.connect(self.stopIvtAutoscale)
 		self.QvtPlay.clicked.connect(self.startQvtAutoscale)
@@ -388,11 +490,16 @@ class Window(QtWidgets.QMainWindow):
 			return 'canceled'
 
 	def startScience(self):
+		self.stopScienceFlag = False
 		if self.saveLocationLineEdit.text() == '':
 			status = self.setSaveLocation()
 			if status == 'canceled':
+				self.stopScience()
 				return
 
+		self.startScienceButton.setEnabled(False)
+		self.stopScienceButton.setEnabled(True)
+		self.currentLoopLineEdit.setText("0")
 
 		self.depositionTimeLineEdit.setReadOnly(True)
 		self.depositionVoltageLineEdit.setReadOnly(True)
@@ -416,10 +523,33 @@ class Window(QtWidgets.QMainWindow):
 
 		if self.tabWidget.currentIndex() == 2:
 			self.tabWidget.setCurrentIndex(0)
-		self.startCycles()
+		self.thread = QThread()
+		self.worker = Worker(totalLoops=int(self.totalLoopsLineEdit.text()))
+		self.worker.moveToThread(self.thread)
+		self.thread.started.connect(self.worker.run)
+		self.worker.finished.connect(self.thread.quit)
+		self.worker.finished.connect(self.worker.deleteLater)
+		self.thread.finished.connect(self.thread.deleteLater)
+		self.worker.progress.connect(self.iterateCycle)
+		self.thread.start()
+
+		# self.thread.finished.connect(
+		# 	lambda: self.startScienceButton.setEnabled(True)
+		# )
+		# self.thread.finished.connect(
+		# 	lambda: self.currentLoopLineEdit.setText("0")
+		# )
+		self.thread.finished.connect(self.stopScience)
 		print ('Science Started')
 
+	def stopScienceButtonFunc(self):
+		self.stopScienceFlag = True
+
 	def stopScience(self):
+		if self.stopScienceFlag == True:
+			print ('Abort detected. Thread finished.')
+		self.stopScienceButton.setEnabled(False)
+		self.startScienceButton.setEnabled(True)
 		self.depositionTimeLineEdit.setReadOnly(False)
 		self.depositionVoltageLineEdit.setReadOnly(False)
 		self.depositionWaitLineEdit.setReadOnly(False)
@@ -496,6 +626,7 @@ class Window(QtWidgets.QMainWindow):
 			stripWait = float(self.stripWaitLineEdit.text())
 			depositionVoltage = float(self.depositionVoltageLineEdit.text())
 			stripVoltage = float(self.stripVoltageLineEdit.text())
+			loops = float(self.totalLoopsLineEdit.text())
 
 			x0 = -initialWait
 			x1 = depositionTime
@@ -517,8 +648,25 @@ class Window(QtWidgets.QMainWindow):
 			self.cycleProfileaxes.autoscale()
 			self.cycleProfileaxes.set_ylim(-1.5,1.5)
 			self.cycleProfilecanvas.draw()
+
+			# Update ETA
+			cycleTime = depositionTime+depositionWait+stripTime+stripWait
+			totalTime = initialWait + loops*cycleTime
+			totalHours = int(np.floor(totalTime/3600))
+			totalMinutes = int(np.floor((totalTime - 3600*totalHours)/60))
+			totalSeconds = int(np.floor(totalTime - 3600*totalHours - 60*totalMinutes))
+			print (f'{totalHours:02}')
+			self.totalTimeLineEdit.setText(f'{totalHours:02}:{totalMinutes:02}:{totalSeconds:02}')
+			self.timeRemainingLineEdit.setText(f'{totalHours:02}:{totalMinutes:02}:{totalSeconds:02}')
 		except Exception as e: print(e)
 
+	def iterateCycle(self, n):
+		self.currentLoop = int(self.currentLoopLineEdit.text()) + 1
+		print ('Starting Loop...')
+		print (self.currentLoop)
+		self.totalLoops = int(self.totalLoopsLineEdit.text())
+		self.currentLoopLineEdit.setText(f'{self.currentLoop}')
+		self.progressBar.setValue(100*self.currentLoop/self.totalLoops)
 
 	def closeEvent(self,event):
 		app.exit()
