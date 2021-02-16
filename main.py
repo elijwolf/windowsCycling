@@ -1,5 +1,4 @@
-from time import sleep
-from datetime import datetime
+import datetime
 from PyQt5.QtCore import QThread, pyqtSignal
 
 print ('importing sys...')
@@ -49,23 +48,68 @@ import matplotlib.patches as mpatches
 import matplotlib
 matplotlib.use("Qt5Agg")
 
+class ProgressBar(QtWidgets.QProgressBar):
+	def text(self):
+		self.totalSteps = self.maximum() - self.minimum()
+		if self.totalSteps <= 0:
+			self.progress = 0
+		else:
+			self.progress = 100*self.value()/(self.maximum() - self.minimum())
+		self.progressString = f'{self.progress:.2f}'
+		self.progressBarString = self.format().replace('%v', str(self.value())).replace('%m',str(self.totalSteps)).replace('%p',self.progressString)
+		return self.progressBarString
+
 class Worker(QtCore.QObject):
 	def __init__(self, parent=None, totalLoops=1):
 		super(Worker, self).__init__(parent)
-		self.totalLoops = totalLoops
-		self.totalLoops = int(window.totalLoopsLineEdit.text())
+
 	finished = pyqtSignal()
 	progress = pyqtSignal(int)
 
 	def run(self):
-		for i in range(self.totalLoops):
-			if window.stopScienceFlag == True:
-				print ('Abort detected!')
-				break
-			sleep(2)
-			self.progress.emit(i + 1)
-		self.finished.emit()
-		print ('Finished')
+		# self.times = []
+		# self.referenceTime = datetime.datetime.now()
+		self.initialWait = int(window.initialWaitLineEdit.text())
+		self.totalLoops = int(window.totalLoopsLineEdit.text())
+		self.depositionTime = int(window.depositionTimeLineEdit.text())
+		self.depositionWait = int(window.depositionWaitLineEdit.text())
+		self.stripTime = int(window.stripTimeLineEdit.text())
+		self.stripWait = int(window.stripWaitLineEdit.text())
+
+		self.loopTime = self.depositionTime + self.depositionWait + self.stripTime + self.stripWait
+		self.totalTime = self.initialWait + self.totalLoops*self.loopTime
+
+		self.timeInterval = window.timeInterval
+		self.totalIterations = 1000*self.totalTime//self.timeInterval
+		self.currentIteration = 0
+
+		self.timer = QtCore.QTimer(self)
+		self.timer.setInterval(self.timeInterval)
+		self.timer.setTimerType(QtCore.Qt.PreciseTimer)
+		self.timer.timeout.connect(self.doScience)
+		self.timer.start()
+
+	def doScience(self):
+		# self.deltaTime = datetime.datetime.now()-self.referenceTime
+		# self.times.append(self.deltaTime.total_seconds())
+		# if len(self.times) >=2:
+		# 	self.timeDiffs = 1000*np.diff(self.times)
+		# 	self.timeErrors = self.timeDiffs-self.timeInterval
+		# 	self.timeS = self.timeErrors**2
+		# 	self.timeMS = np.mean(self.timeS)
+		# 	self.timeRMS = np.sqrt(self.timeMS)
+		# 	self.maxError = np.max(np.abs(self.timeDiffs-self.timeInterval))
+
+		# 	print (f'{self.timeRMS:.2f}\t{self.maxError:.2f}')
+		self.currentIteration +=1
+		self.progress.emit(self.currentIteration)
+		if self.currentIteration >= self.totalIterations:
+			self.timer.stop()
+			self.finished.emit()
+		if window.stopScienceFlag == True:
+			self.timer.stop()
+			print ('Abort detected!')
+			self.finished.emit()
 
 class Window(QtWidgets.QMainWindow):
 	def __init__(self,parent=None):
@@ -73,6 +117,7 @@ class Window(QtWidgets.QMainWindow):
 		QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
 
 		self.title = 'Windows Cycling'
+		self.timeInterval = 250
 		self.initUI()
 
 	def initUI(self):
@@ -187,8 +232,13 @@ class Window(QtWidgets.QMainWindow):
 		self.stopScienceButton.setText('STOP')
 		self.stopScienceButton.setEnabled(False)
 
-		self.progressBar = QtWidgets.QProgressBar(self)
-		self.progressBar.setValue(0)
+		self.progressBar = ProgressBar(self)
+		self.myValue = 00.00
+		self.progressBar.setMaximum(100)
+		self.progressBar.setValue(self.myValue)
+		# self.progressBar.setFormat("%v/%m")
+		self.progressBar.setFormat('%p%')
+
 
 		self.buttonSizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,QtWidgets.QSizePolicy.Fixed)
 		self.buttonSizePolicy.setHorizontalStretch(0)
@@ -205,7 +255,7 @@ class Window(QtWidgets.QMainWindow):
 		self.gridLayout.addWidget(self.cdPushButton, 0,0,1,1)
 		self.gridLayout.addWidget(self.saveLocationLineEdit, 0,1,1,2)
 		self.gridLayout.addWidget(self.inputFormWidget, 1,0,1,2)
-		self.gridLayout.addWidget(self.tabWidget, 1,2,3,1)
+		self.gridLayout.addWidget(self.tabWidget, 1,2,4,1)
 		self.gridLayout.addWidget(self.startScienceButton, 2,0,1,2)
 		self.gridLayout.addWidget(self.stopScienceButton, 3,0,1,2)
 		self.gridLayout.addWidget(self.progressBar, 4, 0, 1, 2)
@@ -343,15 +393,15 @@ class Window(QtWidgets.QMainWindow):
 		self.intValidator = QtGui.QIntValidator()
 		self.floatValidator = QtGui.QDoubleValidator()
 
-		self.depositionTimeLineEdit.setValidator(self.floatValidator)
+		self.depositionTimeLineEdit.setValidator(self.intValidator)
 		self.depositionVoltageLineEdit.setValidator(self.floatValidator)
-		self.depositionWaitLineEdit.setValidator(self.floatValidator)
-		self.stripTimeLineEdit.setValidator(self.floatValidator)
+		self.depositionWaitLineEdit.setValidator(self.intValidator)
+		self.stripTimeLineEdit.setValidator(self.intValidator)
 		self.stripVoltageLineEdit.setValidator(self.floatValidator)
-		self.stripWaitLineEdit.setValidator(self.floatValidator)
+		self.stripWaitLineEdit.setValidator(self.intValidator)
 		self.cutOffDepositionILineEdit.setValidator(self.floatValidator)
 		self.totalLoopsLineEdit.setValidator(self.intValidator)
-		self.initialWaitLineEdit.setValidator(self.floatValidator)
+		self.initialWaitLineEdit.setValidator(self.intValidator)
 
 		# Add Line Edits to the Form
 		self.inputFormLayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.depositionTimeLineEdit)
@@ -524,13 +574,13 @@ class Window(QtWidgets.QMainWindow):
 		if self.tabWidget.currentIndex() == 2:
 			self.tabWidget.setCurrentIndex(0)
 		self.thread = QThread()
-		self.worker = Worker(totalLoops=int(self.totalLoopsLineEdit.text()))
+		self.worker = Worker()
 		self.worker.moveToThread(self.thread)
 		self.thread.started.connect(self.worker.run)
 		self.worker.finished.connect(self.thread.quit)
 		self.worker.finished.connect(self.worker.deleteLater)
 		self.thread.finished.connect(self.thread.deleteLater)
-		self.worker.progress.connect(self.iterateCycle)
+		self.worker.progress.connect(self.stepIteration)
 		self.thread.start()
 
 		# self.thread.finished.connect(
@@ -618,24 +668,30 @@ class Window(QtWidgets.QMainWindow):
 		stripVoltage = 0
 
 		try:
+			self.initialWait = int(self.initialWaitLineEdit.text())
+			self.totalLoops = int(self.totalLoopsLineEdit.text())
+			self.depositionTime = int(self.depositionTimeLineEdit.text())
+			self.depositionWait = int(self.depositionWaitLineEdit.text())
+			self.stripTime = int(self.stripTimeLineEdit.text())
+			self.stripWait = int(self.stripWaitLineEdit.text())
+
+			self.loopTime = self.depositionTime + self.depositionWait + self.stripTime + self.stripWait
+			self.totalTime = self.initialWait + self.totalLoops*self.loopTime
+
+			self.totalIterations = 1000*self.totalTime//self.timeInterval
 			# Convert Strings to Floats
-			initialWait = float(self.initialWaitLineEdit.text())
-			depositionTime = float(self.depositionTimeLineEdit.text())
-			depositionWait = float(self.depositionWaitLineEdit.text())
-			stripTime = float(self.stripTimeLineEdit.text())
-			stripWait = float(self.stripWaitLineEdit.text())
-			depositionVoltage = float(self.depositionVoltageLineEdit.text())
-			stripVoltage = float(self.stripVoltageLineEdit.text())
-			loops = float(self.totalLoopsLineEdit.text())
+			self.depositionVoltage = float(self.depositionVoltageLineEdit.text())
+			self.stripVoltage = float(self.stripVoltageLineEdit.text())
+			self.totalLoops = float(self.totalLoopsLineEdit.text())
 
-			x0 = -initialWait
-			x1 = depositionTime
-			x2 = x1 + depositionWait
-			x3 = x2 + stripTime
-			x4 = x3 + stripWait
+			x0 = -self.initialWait
+			x1 = self.depositionTime
+			x2 = x1 + self.depositionWait
+			x3 = x2 + self.stripTime
+			x4 = x3 + self.stripWait
 
-			y0 = depositionVoltage
-			y1 = stripVoltage
+			y0 = self.depositionVoltage
+			y1 = self.stripVoltage
 
 			self.cycleProfileaxes.clear()
 			self.cycleProfileaxes.set_title('Cycle Profile')
@@ -650,23 +706,34 @@ class Window(QtWidgets.QMainWindow):
 			self.cycleProfilecanvas.draw()
 
 			# Update ETA
-			cycleTime = depositionTime+depositionWait+stripTime+stripWait
-			totalTime = initialWait + loops*cycleTime
-			totalHours = int(np.floor(totalTime/3600))
-			totalMinutes = int(np.floor((totalTime - 3600*totalHours)/60))
-			totalSeconds = int(np.floor(totalTime - 3600*totalHours - 60*totalMinutes))
-			print (f'{totalHours:02}')
-			self.totalTimeLineEdit.setText(f'{totalHours:02}:{totalMinutes:02}:{totalSeconds:02}')
-			self.timeRemainingLineEdit.setText(f'{totalHours:02}:{totalMinutes:02}:{totalSeconds:02}')
+			self.totalHours = self.totalTime//3600
+			self.totalMinutes = (self.totalTime - 3600*self.totalHours)//60
+			self.totalSeconds = self.totalTime - 3600*self.totalHours - 60*self.totalMinutes
+			self.elapsedTimeLineEdit.setText('00:00:00')
+			self.totalTimeLineEdit.setText(f'{self.totalHours:02}:{self.totalMinutes:02}:{self.totalSeconds:02}')
+			self.timeRemainingLineEdit.setText(f'{self.totalHours:02}:{self.totalMinutes:02}:{self.totalSeconds:02}')
+			self.progressBar.setMaximum(self.totalIterations)
+			self.progressBar.setValue(0)
 		except Exception as e: print(e)
 
-	def iterateCycle(self, n):
-		self.currentLoop = int(self.currentLoopLineEdit.text()) + 1
-		print ('Starting Loop...')
-		print (self.currentLoop)
-		self.totalLoops = int(self.totalLoopsLineEdit.text())
-		self.currentLoopLineEdit.setText(f'{self.currentLoop}')
-		self.progressBar.setValue(100*self.currentLoop/self.totalLoops)
+	def stepIteration(self, n):
+		self.elapsedTime = n*self.timeInterval//1000
+		self.elapsedHours = self.elapsedTime//3600
+		self.elapsedMinutes = (self.elapsedTime - self.elapsedHours*3600)//60
+		self.elapsedSeconds = self.elapsedTime - self.elapsedHours*3600 - self.elapsedMinutes*60
+		self.elapsedTimeLineEdit.setText(f'{self.elapsedHours:02}:{self.elapsedMinutes:02}:{self.elapsedSeconds:02}')
+		
+		self.remainingTime = self.totalTime - self.elapsedTime
+		self.remainingHours = self.remainingTime//3600
+		self.remainingMinutes = (self.remainingTime - self.remainingHours*3600)//60
+		self.remainingSeconds = self.remainingTime - self.remainingHours*3600 - self.remainingMinutes*60
+		self.timeRemainingLineEdit.setText(f'{self.remainingHours:02}:{self.remainingMinutes:02}:{self.remainingSeconds:02}')
+
+		self.activeChargeLineEdit.setText(str(n))
+
+		self.currentLoop = min(int(self.totalLoops),max(0,1 + (n - 1000*self.initialWait//self.timeInterval)//(1000*self.loopTime//self.timeInterval)))
+		self.currentLoopLineEdit.setText(str(self.currentLoop))
+		self.progressBar.setValue(n)
 
 	def closeEvent(self,event):
 		app.exit()
