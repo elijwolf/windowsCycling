@@ -1,15 +1,19 @@
-import datetime
-# from PyQt5.QtCore import QThread, pyqtSignal
-
 print ('importing sys...')
 import sys
 print ('importing os...')
 import os
+print ('importing platform')
+import platform
+print ('importing datetime')
+import datetime
 print ('importing numpy...')
 import numpy as np
+print ('importing pandas')
+import pandas as pd
 ######################################################################################################
 print ('importing PyQt5...')
 from PyQt5 import QtCore, QtWidgets, QtGui
+######################################################################################################
 print ('importing Matplotlib...')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -22,7 +26,7 @@ import matplotlib.patches as mpatches
 import matplotlib
 matplotlib.use("Qt5Agg")
 ######################################################################################################
-print ('Importing myKeithleyFunctions')
+print ('importing myKeithleyFunctions...')
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),'Keithley Code'))
 import myKeithleyFunctions as mkf
 ######################################################################################################
@@ -72,10 +76,12 @@ class Worker(QtCore.QObject):
 	progress = QtCore.pyqtSignal(int,object)
 
 	def run(self):
+		self.keithley = window.keithley
+		mkf.prepareCurrent(self.keithley)
 		# self.times = []
 		# self.referenceTime = datetime.datetime.now()
 
-		#C Convert Strings to Ints
+		# Convert Strings to Ints
 		self.initialWait = int(window.initialWaitLineEdit.text())
 		self.totalLoops = int(window.totalLoopsLineEdit.text())
 		self.depositionTime = int(window.depositionTimeLineEdit.text())
@@ -119,6 +125,7 @@ class Worker(QtCore.QObject):
 				print ('Status: Initial Wait')
 				self.setVolt = 0
 				self.simCurrent = 0
+				mkf.setVoltage(self.keithley, voltage = self.setVolt)
 		else:
 			self.elapsedCycleIterations = (max(0,self.currentIteration - 1000*self.initialWait//self.timeInterval))%(self.loopTime*1000//self.timeInterval)
 			if self.elapsedCycleIterations == 0 and self.currentIteration != self.totalIterations:
@@ -128,42 +135,55 @@ class Worker(QtCore.QObject):
 				print ('Start Deposition')
 				self.setVolt = self.depositionVoltage
 				self.simCurrent = self.setVolt * 2
+				mkf.setVoltage(self.keithley, voltage = self.setVolt)
 
 			elif self.depositionWait != 0 and self.elapsedCycleIterations == self.depositionTime*1000//self.timeInterval:
 				print ('Dposition Wait')
 				self.setVolt = 0
 				self.simCurrent = 0
+				mkf.setVoltage(self.keithley, voltage = self.setVolt)
 
 			elif self.stripTime != 0 and self.elapsedCycleIterations == (self.depositionTime + self.depositionWait)*1000//self.timeInterval:
 				print ('Start Stripping')
 				self.setVolt = self.stripVoltage
 				self.simCurrent = self.setVolt *2
+				mkf.setVoltage(self.keithley, voltage = self.setVolt)
 
 			elif self.stripWait != 0 and self.elapsedCycleIterations == (self.depositionTime + self.depositionWait + self.stripTime)*1000//self.timeInterval:
 				print ('Strip Wait')
 				self.setVolt = 0
 				self.simCurrent = 0
+				mkf.setVoltage(self.keithley, voltage = self.setVolt)
 
 			elif self.currentIteration == self.totalIterations:
 				print ('Cycling Finished')
 				self.setVolt = 0
 				self.simCurrent = 0
+				mkf.setVoltage(self.keithley, voltage = self.setVolt)
 
 		# Measure from the Keithley
 		if self.currentIteration == 0:
+			mkf.setOutput(self.keithley, True)
 			self.start = datetime.datetime.now()
 			self.timeStamp = 0
 		else:
 			self.timeStamp = (datetime.datetime.now()-self.start).total_seconds()
-		self.rawData = np.array([self.setVolt,self.simCurrent,9.91e+37, self.timeStamp, 0b00000000])
+		if self.keithley == 'test':
+			self.rawData = np.array([self.setVolt,self.simCurrent,9.91e+37, self.timeStamp, 0b00000000])
+		else:
+			self.rawData = mkf.measureCurrent(self.keithley)
 
 		self.progress.emit(self.currentIteration,self.rawData)
 		self.currentIteration += 1
 		if self.currentIteration > self.totalIterations:
 			self.timer.stop()
+			mkf.setVoltage(self.keithley, voltage = 0)
+			mkf.setOutput(self.keithley, False)
 			self.finished.emit()
 		if window.stopScienceFlag == True:
 			self.timer.stop()
+			mkf.setVoltage(self.keithley, voltage = 0)
+			mkf.setOutput(self.keithley, False)
 			print ('Abort detected!')
 			self.finished.emit()
 
@@ -171,6 +191,9 @@ class Window(QtWidgets.QMainWindow):
 	def __init__(self,parent=None):
 		QtWidgets.QMainWindow.__init__(self)
 		QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
+
+		# self.keithley = mkf.connectToKeithley('GPIB0::22::INSTR')
+		self.keithley = mkf.connectToKeithley('test')
 
 		self.title = 'Windows Cycling'
 		self.timeInterval = 250
@@ -287,14 +310,12 @@ class Window(QtWidgets.QMainWindow):
 		self.myLoopValue = 00.00
 		self.loopProgressBar.setMaximum(100)
 		self.loopProgressBar.setValue(self.myLoopValue)
-		# self.loopProgressBar.setFormat("%p/%m")
 		self.loopProgressBar.setFormat('%v%')
 
 		self.totalProgressBar = myProgressBar(self)
 		self.myValue = 00.00
 		self.totalProgressBar.setMaximum(100)
 		self.totalProgressBar.setValue(self.myValue)
-		# self.totalProgressBar.setFormat("%p/%m")
 		self.totalProgressBar.setFormat('%v%')
 
 
@@ -390,7 +411,13 @@ class Window(QtWidgets.QMainWindow):
 		self.inputFormLayout.setWidget(18, QtWidgets.QFormLayout.LabelRole, self.remainingTimeLabel)
 
 		# Create Line Edits
-		self.fixedWidth = 110
+		if platform.system() == 'Windows':
+			self.fixedWidth = 190
+			self.myFontSize = 16
+		if platform.system() == 'Darwin':
+			self.fixedWidth = 110
+			self.myFontSize = 20
+
 		self.depositionTimeLineEdit = QtWidgets.QLineEdit()
 		self.depositionTimeLineEdit.setText('20')
 		self.depositionTimeLineEdit.setFixedWidth(self.fixedWidth)
@@ -512,7 +539,7 @@ class Window(QtWidgets.QMainWindow):
 		# Set Font Properties
 		self.font = QtGui.QFont()
 		self.font.setFamily("Arial")
-		self.font.setPointSize(20)
+		self.font.setPointSize(self.myFontSize)
 
 		# Apply Font to Widgets
 		self.depositionTimeLabel.setFont(self.font)
@@ -697,12 +724,6 @@ class Window(QtWidgets.QMainWindow):
 		self.worker.progress.connect(self.stepIteration)
 		self.thread.start()
 
-		# self.thread.finished.connect(
-		# 	lambda: self.startScienceButton.setEnabled(True)
-		# )
-		# self.thread.finished.connect(
-		# 	lambda: self.currentLoopLineEdit.setText("0")
-		# )
 		self.thread.finished.connect(self.stopScience)
 		print ('Science Started')
 
@@ -711,7 +732,7 @@ class Window(QtWidgets.QMainWindow):
 
 	def stopScience(self):
 		if self.stopScienceFlag == True:
-			print ('Abort detected. Thread finished.')
+			print ('Abort detected! Thread finished.')
 		self.stopScienceButton.setEnabled(False)
 		self.startScienceButton.setEnabled(True)
 		self.depositionTimeLineEdit.setReadOnly(False)
@@ -749,8 +770,6 @@ class Window(QtWidgets.QMainWindow):
 		self.IvtPlay.setChecked(False)
 		self.IvtStop.setChecked(True)
 		print ('stop ivt autoscale')
-
-
 
 	def QvtToolbarClicked(self, event):
 		print ('QVT toolbar clicked')
@@ -814,7 +833,7 @@ class Window(QtWidgets.QMainWindow):
 			self.cycleProfileaxes.axvline(0, c='k')
 			self.cycleProfileaxes.plot([self.x0, 0, 0, self.x1, self.x1, self.x2, self.x2, self.x3, self.x3, self.x4],[0, 0, self.y0, self.y0, 0, 0 ,self.y1, self.y1, 0, 0], c='r', linewidth = 4)
 			self.cycleProfileaxes.relim()
-			# self.cycleProfileaxes.autoscale()
+			self.cycleProfileaxes.autoscale(True)
 			self.cycleProfileaxes.set_ylim(-1.5,1.5)
 			self.cycleProfilecanvas.draw()
 
@@ -904,7 +923,7 @@ class Window(QtWidgets.QMainWindow):
 			self.Ivtaxes.set_ylabel('Current (mA)')
 			self.Ivtaxes.axhline(0,c='k')
 			self.Ivtaxes.axvline(0,c='k')
-			self.Ivtaxes.plot(self.activeTimeList, self.activeCurrentList)
+			self.Ivtaxes.plot(self.activeTimeList, self.activeCurrentList, linewidth=4)
 			if not self.myIvtAutoscale:
 				self.Ivtaxes.axis(self.Ivtaxis)
 			self.Ivtcanvas.draw()
@@ -917,7 +936,7 @@ class Window(QtWidgets.QMainWindow):
 			self.Qvtaxes.set_ylabel('Charge (mC)')
 			self.Qvtaxes.axhline(0,c='k')
 			self.Qvtaxes.axvline(0,c='k')
-			self.Qvtaxes.plot(self.activeTimeList, self.activeChargeList)
+			self.Qvtaxes.plot(self.activeTimeList, self.activeChargeList, linewidth=4)
 			if not self.myQvtAutoscale:
 				self.Qvtaxes.axis(self.Qvtaxis)
 			self.Qvtcanvas.draw()
@@ -931,11 +950,18 @@ class Window(QtWidgets.QMainWindow):
 		self.cycleProfileaxes.plot([self.x0, 0, 0, self.x1, self.x1, self.x2, self.x2, self.x3, self.x3, self.x4],[0, 0, self.y0, self.y0, 0, 0 ,self.y1, self.y1, 0, 0], c='r', linewidth = 4)
 		self.cycleProfileaxes.axvline(self.elapsedCycleIterations*self.timeInterval/1000, c='g')
 		self.cycleProfileaxes.relim()
-		# self.cycleProfileaxes.autoscale()
 		self.cycleProfileaxes.set_ylim(-1.5,1.5)
 		self.cycleProfilecanvas.draw()
 
+		if n == 0:
+			headerBool = True
+		else:
+			headerBool = False
+		self.dataToSave = pd.DataFrame({'Time':self.activeTimeList[-1], 'Voltage':self.activeVoltageList[-1], 'Current':self.activeCurrentList[-1], 'Charge':self.activeChargeList[-1]}, index = pd.Index([n]))
+		self.dataToSave.to_csv(os.path.join(self.saveLocationLineEdit.text(),'test.csv'), mode='a', header=headerBool)
+
 	def closeEvent(self,event):
+		mkf.shutdownKeithley(self.keithley)
 		app.exit()
 
 
