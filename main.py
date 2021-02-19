@@ -92,6 +92,7 @@ class Worker(QtCore.QObject):
 		# Convert Strings to Floats
 		self.depositionVoltage = float(window.depositionVoltageLineEdit.text())
 		self.stripVoltage = float(window.stripVoltageLineEdit.text())
+		self.depositionCutoff = float(window.depositionCutoffILineEdit.text())
 
 		self.loopTime = self.depositionTime + self.depositionWait + self.stripTime + self.stripWait
 		self.totalTime = self.initialWait + self.totalLoops*self.loopTime
@@ -355,8 +356,8 @@ class Window(QtWidgets.QMainWindow):
 		self.stripWaitLabel = QtWidgets.QLabel(self.mainWidget)
 		self.stripWaitLabel.setText('t<sub>strip, wait</sub> (s)')	
 
-		self.cutOffDepositionILabel = QtWidgets.QLabel(self.mainWidget)
-		self.cutOffDepositionILabel.setText('I<sub>deposition, cutoff</sub> (mA)')
+		self.cutoffDepositionILabel = QtWidgets.QLabel(self.mainWidget)
+		self.cutoffDepositionILabel.setText('I<sub>deposition, cutoff</sub> (mA)')
 
 		self.totalLoopsLabel = QtWidgets.QLabel(self.mainWidget)
 		self.totalLoopsLabel.setText('Loop Count')
@@ -395,7 +396,7 @@ class Window(QtWidgets.QMainWindow):
 		self.inputFormLayout.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.stripTimeLabel)
 		self.inputFormLayout.setWidget(4, QtWidgets.QFormLayout.LabelRole, self.stripVoltageLabel)
 		self.inputFormLayout.setWidget(5, QtWidgets.QFormLayout.LabelRole, self.stripWaitLabel)
-		self.inputFormLayout.setWidget(6, QtWidgets.QFormLayout.LabelRole, self.cutOffDepositionILabel)
+		self.inputFormLayout.setWidget(6, QtWidgets.QFormLayout.LabelRole, self.cutoffDepositionILabel)
 		self.inputFormLayout.setWidget(7, QtWidgets.QFormLayout.LabelRole, self.totalLoopsLabel)
 		self.inputFormLayout.setWidget(8, QtWidgets.QFormLayout.LabelRole, self.initialWaitLabel)
 
@@ -442,9 +443,9 @@ class Window(QtWidgets.QMainWindow):
 		self.stripWaitLineEdit.setText('2')
 		self.stripWaitLineEdit.setFixedWidth(self.fixedWidth)
 
-		self.cutOffDepositionILineEdit = QtWidgets.QLineEdit()
-		self.cutOffDepositionILineEdit.setText('1')
-		self.cutOffDepositionILineEdit.setFixedWidth(self.fixedWidth)
+		self.depositionCutoffILineEdit = QtWidgets.QLineEdit()
+		self.depositionCutoffILineEdit.setText('1')
+		self.depositionCutoffILineEdit.setFixedWidth(self.fixedWidth)
 
 		self.totalLoopsLineEdit = QtWidgets.QLineEdit()
 		self.totalLoopsLineEdit.setText('10')
@@ -510,7 +511,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLineEdit.setValidator(self.intValidator)
 		self.stripVoltageLineEdit.setValidator(self.floatValidator)
 		self.stripWaitLineEdit.setValidator(self.intValidator)
-		self.cutOffDepositionILineEdit.setValidator(self.floatValidator)
+		self.depositionCutoffILineEdit.setValidator(self.floatValidator)
 		self.totalLoopsLineEdit.setValidator(self.intValidator)
 		self.initialWaitLineEdit.setValidator(self.intValidator)
 
@@ -521,7 +522,7 @@ class Window(QtWidgets.QMainWindow):
 		self.inputFormLayout.setWidget(3, QtWidgets.QFormLayout.FieldRole, self.stripTimeLineEdit)
 		self.inputFormLayout.setWidget(4, QtWidgets.QFormLayout.FieldRole, self.stripVoltageLineEdit)
 		self.inputFormLayout.setWidget(5, QtWidgets.QFormLayout.FieldRole, self.stripWaitLineEdit)
-		self.inputFormLayout.setWidget(6, QtWidgets.QFormLayout.FieldRole, self.cutOffDepositionILineEdit)
+		self.inputFormLayout.setWidget(6, QtWidgets.QFormLayout.FieldRole, self.depositionCutoffILineEdit)
 		self.inputFormLayout.setWidget(7, QtWidgets.QFormLayout.FieldRole, self.totalLoopsLineEdit)
 		self.inputFormLayout.setWidget(8, QtWidgets.QFormLayout.FieldRole, self.initialWaitLineEdit)
 
@@ -548,7 +549,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLabel.setFont(self.font)
 		self.stripVoltageLabel.setFont(self.font)
 		self.stripWaitLabel.setFont(self.font)
-		self.cutOffDepositionILabel.setFont(self.font)
+		self.cutoffDepositionILabel.setFont(self.font)
 		self.totalLoopsLabel.setFont(self.font)
 		self.initialWaitLabel.setFont(self.font)
 		
@@ -558,7 +559,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLineEdit.setFont(self.font)
 		self.stripVoltageLineEdit.setFont(self.font)
 		self.stripWaitLineEdit.setFont(self.font)
-		self.cutOffDepositionILineEdit.setFont(self.font)
+		self.depositionCutoffILineEdit.setFont(self.font)
 		self.totalLoopsLineEdit.setFont(self.font)
 		self.initialWaitLineEdit.setFont(self.font)
 
@@ -620,7 +621,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLineEdit.setSizePolicy(self.sizePolicy)
 		self.stripVoltageLineEdit.setSizePolicy(self.sizePolicy)
 		self.stripWaitLineEdit.setSizePolicy(self.sizePolicy)
-		self.cutOffDepositionILineEdit.setSizePolicy(self.sizePolicy)
+		self.depositionCutoffILineEdit.setSizePolicy(self.sizePolicy)
 		self.totalLoopsLineEdit.setSizePolicy(self.sizePolicy)
 		self.initialWaitLineEdit.setSizePolicy(self.sizePolicy)
 
@@ -654,7 +655,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLineEdit.textEdited.connect(self.parametersEdited)
 		self.stripVoltageLineEdit.textEdited.connect(self.parametersEdited)
 		self.stripWaitLineEdit.textEdited.connect(self.parametersEdited)
-		self.cutOffDepositionILineEdit.textEdited.connect(self.parametersEdited)
+		self.depositionCutoffILineEdit.textEdited.connect(self.parametersEdited)
 		self.totalLoopsLineEdit.textEdited.connect(self.parametersEdited)
 		self.initialWaitLineEdit.textEdited.connect(self.parametersEdited)
 
@@ -693,7 +694,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLineEdit.setReadOnly(True)
 		self.stripVoltageLineEdit.setReadOnly(True)
 		self.stripWaitLineEdit.setReadOnly(True)
-		self.cutOffDepositionILineEdit.setReadOnly(True)
+		self.depositionCutoffILineEdit.setReadOnly(True)
 		self.totalLoopsLineEdit.setReadOnly(True)
 		self.initialWaitLineEdit.setReadOnly(True)
 
@@ -703,9 +704,28 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.stripVoltageLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.stripWaitLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
-		self.cutOffDepositionILineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
+		self.depositionCutoffILineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.totalLoopsLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.initialWaitLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
+
+		with open(os.path.join(self.saveLocationLineEdit.text(),'test.txt'),'w') as file:
+			file.write(f'User:\t'+'Dr. Tyler Hernandez'+'\n')
+			file.write(datetime.datetime.now().strftime('Date:\t%Y/%m/%d\nTime:\t%H:%M:%S\n'))
+			file.write('\n')
+			file.write('Deposition Parameters\n')
+			file.write(f'Voltage (V):\t{self.depositionVoltage:f}\n')
+			file.write(f'Deposition Time (s):\t{self.depositionTime:d}\n')
+			file.write(f'Deposition Wait Time (s):\t{self.depositionWait:d}\n')
+			file.write(f'Cutoff Current (mA):\t{self.depositionCutoff:f}\n')
+			file.write('\n')
+			file.write('Stripping Parameters\n')
+			file.write(f'Voltage (V):\t{self.stripVoltage:f}\n')
+			file.write(f'Strip Time (s):\t{self.stripTime:d}\n')
+			file.write(f'Strip Wait Time (s):\t{self.stripWait:d}\n')
+			file.write('\n')
+			file.write(f'Loop Count:\t{self.totalLoops}\n')
+			file.write(f'Initial Delay (s):\t{self.initialWait:d}\n')
+			file.write('\n')
 
 		self.activeVoltageList = []
 		self.activeCurrentList = []
@@ -717,14 +737,14 @@ class Window(QtWidgets.QMainWindow):
 		self.thread = QtCore.QThread()
 		self.worker = Worker()
 		self.worker.moveToThread(self.thread)
-		self.thread.started.connect(self.worker.run)
+		self.worker.progress.connect(self.stepIteration)
 		self.worker.finished.connect(self.thread.quit)
 		self.worker.finished.connect(self.worker.deleteLater)
+		self.thread.started.connect(self.worker.run)
+		self.thread.finished.connect(self.stopScience)
 		self.thread.finished.connect(self.thread.deleteLater)
-		self.worker.progress.connect(self.stepIteration)
 		self.thread.start()
 
-		self.thread.finished.connect(self.stopScience)
 		print ('Science Started')
 
 	def stopScienceButtonFunc(self):
@@ -741,7 +761,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLineEdit.setReadOnly(False)
 		self.stripVoltageLineEdit.setReadOnly(False)
 		self.stripWaitLineEdit.setReadOnly(False)
-		self.cutOffDepositionILineEdit.setReadOnly(False)
+		self.depositionCutoffILineEdit.setReadOnly(False)
 		self.totalLoopsLineEdit.setReadOnly(False)
 		self.initialWaitLineEdit.setReadOnly(False)
 
@@ -751,7 +771,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripTimeLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
 		self.stripVoltageLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
 		self.stripWaitLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
-		self.cutOffDepositionILineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
+		self.depositionCutoffILineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
 		self.totalLoopsLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
 		self.initialWaitLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
 
@@ -815,6 +835,7 @@ class Window(QtWidgets.QMainWindow):
 			# Convert Strings to Floats
 			self.depositionVoltage = float(self.depositionVoltageLineEdit.text())
 			self.stripVoltage = float(self.stripVoltageLineEdit.text())
+			self.depositionCutoff = float(self.depositionCutoffILineEdit.text())
 
 			self.x0 = -self.initialWait
 			self.x1 = self.depositionTime
@@ -957,8 +978,8 @@ class Window(QtWidgets.QMainWindow):
 			headerBool = True
 		else:
 			headerBool = False
-		self.dataToSave = pd.DataFrame({'Time':self.activeTimeList[-1], 'Voltage':self.activeVoltageList[-1], 'Current':self.activeCurrentList[-1], 'Charge':self.activeChargeList[-1]}, index = pd.Index([n]))
-		self.dataToSave.to_csv(os.path.join(self.saveLocationLineEdit.text(),'test.csv'), mode='a', header=headerBool)
+		self.dataToSave = pd.DataFrame({'Time':self.activeTimeList[-1], 'Voltage (V)':self.activeVoltageList[-1], 'Current (A)':self.activeCurrentList[-1], 'Charge (mC)':self.activeChargeList[-1]}, index = pd.Index([n]))
+		self.dataToSave.to_csv(os.path.join(self.saveLocationLineEdit.text(),'test.txt'), mode='a', header=headerBool, sep = '\t')
 
 	def closeEvent(self,event):
 		mkf.shutdownKeithley(self.keithley)
