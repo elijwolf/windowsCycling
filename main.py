@@ -182,13 +182,14 @@ class Worker(QtCore.QObject):
 			self.rawData = np.array([self.setVolt,self.simCurrent,9.91e+37, self.timeStamp, 0b00000000])
 		else:
 			self.rawData = mkf.measureCurrent(self.keithley)
+            
 
 		if self.keithley == 'test':
 			if self.currentIteration == 10:
 				self.rawData[1] = -0.5
 		if self.status == 'Status: Start Deposition':
 			if abs(self.rawData[1]) <= self.depositionCutoff:
-				self.status = 'Staut: Cutoff Current Condition Met'
+				self.status = 'Status: Cutoff Current Condition Met'
 				print (self.status)
 				self.setVolt = 0
 				self.simCurrent = 0
@@ -213,8 +214,8 @@ class Window(QtWidgets.QMainWindow):
 		QtWidgets.QMainWindow.__init__(self)
 		QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
 
-		# self.keithley = mkf.connectToKeithley('GPIB0::22::INSTR')
-		self.keithley = mkf.connectToKeithley('test')
+		self.keithley = mkf.connectToKeithley('GPIB1::23::INSTR')
+		# self.keithley = mkf.connectToKeithley('test')
 
 		self.title = 'Windows Cycling'
 		self.timeInterval = 250
@@ -409,7 +410,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stripWaitLabel.setText('t<sub>strip, wait</sub> (s)')	
 
 		self.cutoffDepositionILabel = QtWidgets.QLabel(self.mainWidget)
-		self.cutoffDepositionILabel.setText('I<sub>deposition, cutoff</sub> (mA)')
+		self.cutoffDepositionILabel.setText('I<sub>deposition, cutoff</sub> (A)')
 
 		self.totalLoopsLabel = QtWidgets.QLabel(self.mainWidget)
 		self.totalLoopsLabel.setText('Loop Count')
@@ -420,9 +421,9 @@ class Window(QtWidgets.QMainWindow):
 		self.activeVoltageLabel = QtWidgets.QLabel(self.mainWidget)
 		self.activeVoltageLabel.setText('V (V)')
 		self.activeCurrentLabel = QtWidgets.QLabel(self.mainWidget)
-		self.activeCurrentLabel.setText('I (mA)')
+		self.activeCurrentLabel.setText('I (A)')
 		self.activeChargeLabel = QtWidgets.QLabel(self.mainWidget)
-		self.activeChargeLabel.setText('Q (mC)')
+		self.activeChargeLabel.setText('Q (C)')
 
 		self.currentLoopLabel = QtWidgets.QLabel(self.mainWidget)
 		self.currentLoopLabel.setText('Current Cycle')
@@ -737,6 +738,7 @@ class Window(QtWidgets.QMainWindow):
 		self.stopScienceButton.setEnabled(True)
 		self.currentLoopLineEdit.setText("0")
 
+		self.userLineEdit.setReadOnly(True)
 		self.depositionTimeLineEdit.setReadOnly(True)
 		self.depositionVoltageLineEdit.setReadOnly(True)
 		self.depositionWaitLineEdit.setReadOnly(True)
@@ -747,6 +749,7 @@ class Window(QtWidgets.QMainWindow):
 		self.totalLoopsLineEdit.setReadOnly(True)
 		self.initialWaitLineEdit.setReadOnly(True)
 
+		self.userLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.depositionTimeLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.depositionVoltageLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
 		self.depositionWaitLineEdit.setStyleSheet("QLineEdit { background: rgb(223, 223, 223);}")
@@ -761,19 +764,19 @@ class Window(QtWidgets.QMainWindow):
 			file.write(f'User:\t'+'Dr. Tyler Hernandez'+'\n')
 			file.write(datetime.datetime.now().strftime('Date:\t%Y/%m/%d\nTime:\t%H:%M:%S\n'))
 			file.write('\n')
+			file.write(f'Loop Count:\t{self.totalLoops}\n')
+			file.write(f'Initial Delay (s):\t{self.initialWait:d}\n')
+			file.write('\n')
 			file.write('Deposition Parameters\n')
 			file.write(f'Voltage (V):\t{self.depositionVoltage:f}\n')
 			file.write(f'Deposition Time (s):\t{self.depositionTime:d}\n')
 			file.write(f'Deposition Wait Time (s):\t{self.depositionWait:d}\n')
-			file.write(f'Cutoff Current (mA):\t{self.depositionCutoff:f}\n')
+			file.write(f'Cutoff Current (A):\t{self.depositionCutoff:f}\n')
 			file.write('\n')
 			file.write('Stripping Parameters\n')
 			file.write(f'Voltage (V):\t{self.stripVoltage:f}\n')
 			file.write(f'Strip Time (s):\t{self.stripTime:d}\n')
 			file.write(f'Strip Wait Time (s):\t{self.stripWait:d}\n')
-			file.write('\n')
-			file.write(f'Loop Count:\t{self.totalLoops}\n')
-			file.write(f'Initial Delay (s):\t{self.initialWait:d}\n')
 			file.write('\n')
 
 		self.activeVoltageList = []
@@ -804,6 +807,8 @@ class Window(QtWidgets.QMainWindow):
 			print ('Abort detected! Thread finished.')
 		self.stopScienceButton.setEnabled(False)
 		self.startScienceButton.setEnabled(True)
+
+		self.userLineEdit.setReadOnly(False)
 		self.depositionTimeLineEdit.setReadOnly(False)
 		self.depositionVoltageLineEdit.setReadOnly(False)
 		self.depositionWaitLineEdit.setReadOnly(False)
@@ -814,6 +819,7 @@ class Window(QtWidgets.QMainWindow):
 		self.totalLoopsLineEdit.setReadOnly(False)
 		self.initialWaitLineEdit.setReadOnly(False)
 
+		self.userLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
 		self.depositionTimeLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
 		self.depositionVoltageLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
 		self.depositionWaitLineEdit.setStyleSheet("QLineEdit { background: rgb(255, 255, 255);}")
@@ -936,7 +942,9 @@ class Window(QtWidgets.QMainWindow):
 		self.activeCurrentList.append(self.activeCurrent)
 		self.activeCurrentLineEdit.setText(f'{self.activeCurrent:.3f}')
 
-		self.activeTime = rawData[3] - self.initialWait
+		if n == 0:
+			self.startTime = rawData[3]
+		self.activeTime = rawData[3] - self.initialWait - self.startTime
 		self.activeTimeList.append(self.activeTime)
 
 		if n == 0:
@@ -990,7 +998,7 @@ class Window(QtWidgets.QMainWindow):
 			self.Ivtaxes.clear()
 			self.Ivtaxes.set_title('I v t')
 			self.Ivtaxes.set_xlabel('Time (seconds)')
-			self.Ivtaxes.set_ylabel('Current (mA)')
+			self.Ivtaxes.set_ylabel('Current (A)')
 			self.Ivtaxes.axhline(0,c='k')
 			self.Ivtaxes.axvline(0,c='k')
 			self.Ivtaxes.plot(self.activeTimeList, self.activeCurrentList, linewidth=4)
@@ -1003,7 +1011,7 @@ class Window(QtWidgets.QMainWindow):
 			self.Qvtaxes.clear()
 			self.Qvtaxes.set_title('Q v t')
 			self.Qvtaxes.set_xlabel('Time (seconds)')
-			self.Qvtaxes.set_ylabel('Charge (mC)')
+			self.Qvtaxes.set_ylabel('Charge (C)')
 			self.Qvtaxes.axhline(0,c='k')
 			self.Qvtaxes.axvline(0,c='k')
 			self.Qvtaxes.plot(self.activeTimeList, self.activeChargeList, linewidth=4)
@@ -1027,7 +1035,7 @@ class Window(QtWidgets.QMainWindow):
 			headerBool = True
 		else:
 			headerBool = False
-		self.dataToSave = pd.DataFrame({'Time':self.activeTimeList[-1], 'Voltage (V)':self.activeVoltageList[-1], 'Current (A)':self.activeCurrentList[-1], 'Charge (mC)':self.activeChargeList[-1]}, index = pd.Index([n]))
+		self.dataToSave = pd.DataFrame({'Time':self.activeTimeList[-1], 'Voltage (V)':self.activeVoltageList[-1], 'Current (A)':self.activeCurrentList[-1], 'Charge (C)':self.activeChargeList[-1]}, index = pd.Index([n]))
 		self.dataToSave.to_csv(self.saveLocationLineEdit.text(), mode='a', header=headerBool, sep = '\t')
 
 	def closeEvent(self,event):
