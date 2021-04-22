@@ -281,8 +281,8 @@ class Window(QtWidgets.QMainWindow):
 		# print(QtWidgets.QStyleFactory.keys())
 		# sys.exit()
 
-		# self.keithley = mkf.connectToKeithley('GPIB0::22::INSTR')
-		self.keithley = mkf.connectToKeithley('test')
+		self.keithley = mkf.connectToKeithley('GPIB0::22::INSTR')
+		# self.keithley = mkf.connectToKeithley('test')
 
 		self.title = 'Windows Cycling'
 		self.timeInterval = 250
