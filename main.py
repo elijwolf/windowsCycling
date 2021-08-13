@@ -281,9 +281,6 @@ class Window(QtWidgets.QMainWindow):
 		# print(QtWidgets.QStyleFactory.keys())
 		# sys.exit()
 
-		self.keithley = mkf.connectToKeithley('GPIB0::22::INSTR')
-		# self.keithley = mkf.connectToKeithley('test')
-
 		self.title = 'Windows Cycling'
 		self.timeInterval = 250
 		self.initUI()
@@ -460,6 +457,11 @@ class Window(QtWidgets.QMainWindow):
 		self.cdPushButton.setIcon(QtGui.QIcon(os.path.join('assets','save.png')))
 		self.cdPushButton.setToolTip('Go to a specific directory.')
 
+		self.keithleyPushButton = QtWidgets.QPushButton(self.mainWidget)
+		self.keithleyPushButton.setText('No Keithley Selected')
+		# self.keithleyPushButton.setIcon(QtGui.QIcon(os.path.join('assets','keithley.png')))
+		self.keithleyPushButton.setToolTip('Select the Keithley to use.')
+
 		self.saveLocationLineEdit = QtWidgets.QLineEdit()
 		self.saveLocationLineEdit.setReadOnly(True)
 		self.startScienceButton = QtWidgets.QPushButton(self.mainWidget)
@@ -492,6 +494,7 @@ class Window(QtWidgets.QMainWindow):
 
 		self.settingsPushButton.setSizePolicy(self.buttonSizePolicy)
 		self.cdPushButton.setSizePolicy(self.buttonSizePolicy)
+		self.keithleyPushButton.setSizePolicy(self.buttonSizePolicy)
 		# self.startScienceButton.setSizePolicy(self.buttonSizePolicy)
 		self.IvtPlay.setSizePolicy(self.buttonSizePolicy)
 		self.IvtStop.setSizePolicy(self.buttonSizePolicy)
@@ -503,17 +506,18 @@ class Window(QtWidgets.QMainWindow):
 		# Add Widgets to the grid
 		self.gridLayout.addWidget(self.settingsPushButton, 0,0,1,1)
 		self.gridLayout.addWidget(self.cdPushButton, 0,1,1,1)
-		self.gridLayout.addWidget(self.saveLocationLineEdit, 0,2,1,5)
-		self.gridLayout.addWidget(self.inputFormWidget, 1,0,1,5)
-		self.gridLayout.addWidget(self.depositionGroupBox, 2,0,1,3)
-		self.gridLayout.addWidget(self.stripGroupBox, 3,0,1,3)
-		self.gridLayout.addWidget(self.measurementGroupBox, 2,3,1,2)
-		self.gridLayout.addWidget(self.timeGroupBox, 3,3,1,2)
-		self.gridLayout.addWidget(self.tabWidget, 1,5,7,1)
-		self.gridLayout.addWidget(self.startScienceButton, 4,0,1,5)
-		self.gridLayout.addWidget(self.stopScienceButton, 5,0,1,5)
-		self.gridLayout.addWidget(self.loopProgressBar, 6,0,1,5)
-		self.gridLayout.addWidget(self.totalProgressBar, 7,0,1,5)
+		self.gridLayout.addWidget(self.keithleyPushButton, 0,2,1,1)
+		self.gridLayout.addWidget(self.saveLocationLineEdit, 0,3,1,6)
+		self.gridLayout.addWidget(self.inputFormWidget, 1,0,1,6)
+		self.gridLayout.addWidget(self.depositionGroupBox, 2,0,1,4)
+		self.gridLayout.addWidget(self.stripGroupBox, 3,0,1,4)
+		self.gridLayout.addWidget(self.measurementGroupBox, 2,4,1,2)
+		self.gridLayout.addWidget(self.timeGroupBox, 3,4,1,2)
+		self.gridLayout.addWidget(self.tabWidget, 1,6,7,1)
+		self.gridLayout.addWidget(self.startScienceButton, 4,0,1,6)
+		self.gridLayout.addWidget(self.stopScienceButton, 5,0,1,6)
+		self.gridLayout.addWidget(self.loopProgressBar, 6,0,1,6)
+		self.gridLayout.addWidget(self.totalProgressBar, 7,0,1,6)
 
 		# Create Labels
 		self.userLabel = QtWidgets.QLabel(self.mainWidget)
@@ -779,6 +783,8 @@ class Window(QtWidgets.QMainWindow):
 		self.font.setPointSize(self.myFontSize)
 
 		# Apply Font to Widgets
+		self.keithleyPushButton.setFont(self.font)
+
 		self.userLabel.setFont(self.font)
 		self.depositionTimeLabel.setFont(self.font)
 		self.depositionVoltageLabel.setFont(self.font)
@@ -885,6 +891,7 @@ class Window(QtWidgets.QMainWindow):
 		# Connect Signals
 		self.settingsPushButton.clicked.connect(self.editLiveSettings)
 		self.cdPushButton.clicked.connect(self.setSaveLocation)
+		self.keithleyPushButton.clicked.connect(self.selectKeithley)
 		self.startScienceButton.clicked.connect(self.startScience)
 		self.stopScienceButton.clicked.connect(self.stopScienceButtonFunc)
 		self.myIvtAutoscale = True
@@ -914,6 +921,25 @@ class Window(QtWidgets.QMainWindow):
 		self.show()
 		self.move(50,50)
 
+		try:
+			self.rm = pyvisa.ResourceManager()
+			self.resourceListTuple = self.rm.list_resources()
+		except:
+			self.resourceListTuple = ('K1',)
+			self.resourceListTuple = ('K1', 'K2', 'K3', 'K4')
+		self.resourceListTupleList = list(self.resourceListTuple)
+		self.resourceListTupleList.append('test')
+		self.resourceListTuple = self.resourceListTupleList
+		# self.resourceListTuple = tuple(list(self.resourceListTuple).append('test'))
+
+		if len(self.resourceListTuple) == 1:
+			self.button1.setText(self.resourceListTuple[0])
+		else:
+			self.selectKeithley()
+
+		# self.keithley = mkf.connectToKeithley('GPIB0::22::INSTR')
+		self.keithley = mkf.connectToKeithley('test')
+
 		# Initialize Default Values
 		self.parametersEdited()
 		self.adjustSize()
@@ -929,6 +955,47 @@ class Window(QtWidgets.QMainWindow):
 		else:
 			print ('keeping old save location')
 			return 'canceled'
+
+	def selectKeithley(self):
+		self.selectKeithleyWidget = QtWidgets.QDialog(self.mainWidget)
+		self.selectKeithleyWidget.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+		self.selectKeithleyWidget.setWindowTitle('Select a Keithley to use for cycling')
+		self.selectKeithleyWidgetFont = self.selectKeithleyWidget.font()
+		self.selectKeithleyWidgetFont.setPointSize(16)
+		self.selectKeithleyWidget.setFont(self.selectKeithleyWidgetFont)
+		self.selectKeithleyWidget.setWindowFlags(QtCore.Qt.Dialog | QtCore.Qt.WindowTitleHint | QtCore.Qt.WindowCloseButtonHint)
+		self.selectKeithleyWidget.finished.connect(self.dialogFinished)
+
+		self.selectKeithleyWidgetGridLayout = QtWidgets.QGridLayout(self.selectKeithleyWidget)
+
+		self.selectKeithleyList = QtWidgets.QListWidget(self.selectKeithleyWidget)
+		self.selectKeithleyList.itemDoubleClicked.connect(self.keithleySelected)
+		self.selectKeithleyList.setFont(self.selectKeithleyWidgetFont)
+		self.selectKeithleyList.addItems(self.resourceListTuple)
+
+		self.selectButton = QtWidgets.QPushButton(self.selectKeithleyWidget)
+		self.selectButton.setText('Select')
+		self.selectButton.clicked.connect(self.keithleySelected)
+
+		self.selectKeithleyWidgetGridLayout.addWidget(self.selectKeithleyList, 0,0,1,2)
+		self.selectKeithleyWidgetGridLayout.addWidget(self.selectButton, 1,0,1,2)
+
+		self.selectKeithleyWidget.open()
+
+	def keithleySelected(self):
+		print ('Keithley Selected')
+		self.selectKeithleyWidget.done(QtWidgets.QDialog.Accepted)
+		self.keithleyPushButton.setText(self.selectKeithleyList.currentItem().text())
+
+	def dialogFinished(self, r):
+		print ('done with dialog')
+		print (r)
+		if r == 0:
+			print ('No Keithley Selected')
+			self.close()
+		else:
+			self.selection = self.selectKeithleyList.currentItem().text()
+			print (self.selection)
 
 	def startScience(self):
 		self.stopScienceFlag = False
