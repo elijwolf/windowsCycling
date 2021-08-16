@@ -34,6 +34,8 @@ matplotlib.use("Qt5Agg")
 print ('importing myKeithleyFunctions...')
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),'Keithley Code'))
 import myKeithleyFunctions as mkf
+print ('importing pyvisa')
+import pyvisa
 ######################################################################################################
 
 pan = NavigationToolbar.pan
@@ -930,7 +932,6 @@ class Window(QtWidgets.QMainWindow):
 		self.resourceListTupleList = list(self.resourceListTuple)
 		self.resourceListTupleList.append('test')
 		self.resourceListTuple = self.resourceListTupleList
-		# self.resourceListTuple = tuple(list(self.resourceListTuple).append('test'))
 
 		if len(self.resourceListTuple) == 1:
 			self.button1.setText(self.resourceListTuple[0])
@@ -995,6 +996,7 @@ class Window(QtWidgets.QMainWindow):
 			self.close()
 		else:
 			self.selection = self.selectKeithleyList.currentItem().text()
+			self.keithley = mkf.connectToKeithley(self.selection)
 			print (self.selection)
 
 	def startScience(self):
